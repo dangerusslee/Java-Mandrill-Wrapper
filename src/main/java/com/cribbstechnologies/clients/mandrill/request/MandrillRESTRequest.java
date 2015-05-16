@@ -14,15 +14,19 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.List;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.util.EntityUtils;
+
+import javax.net.ssl.HttpsURLConnection;
 
 public class MandrillRESTRequest {
 
@@ -38,7 +42,7 @@ public class MandrillRESTRequest {
         return performPostRequest(request, serviceMethod, responseClass, reference);
     }
 
-    private BaseMandrillResponse performPostRequest(BaseMandrillRequest request, String serviceMethod, Object responseClass, TypeReference reference) throws RequestFailedException {
+    private BaseMandrillResponse performPostRequest_old(BaseMandrillRequest request, String serviceMethod, Object responseClass, TypeReference reference) throws RequestFailedException {
         try {
             request.setKey(config.getApiKey());
             HttpPost postRequest = new HttpPost(config.getServiceUrl() + serviceMethod);
@@ -86,6 +90,73 @@ public class MandrillRESTRequest {
         } catch (IOException ioe) {
             throw new RequestFailedException("IOException", ioe);
         }
+    }
+
+
+    // HTTP POST request
+    private BaseMandrillResponse performPostRequest(BaseMandrillRequest request, String serviceMethod, Object responseClass, TypeReference reference) throws RequestFailedException {
+
+        try {
+
+            request.setKey(config.getApiKey());
+            String postData = getPostData(request);
+            StringEntity input = new StringEntity(postData, "UTF-8");
+            input.setContentType("application/json");
+
+            String url = config.getServiceUrl() + serviceMethod;
+            URL obj = new URL(url);
+            HttpsURLConnection con = (HttpsURLConnection) obj.openConnection();
+
+            //add request header
+            con.setRequestMethod("POST");
+            con.setRequestProperty("User-Agent", "Mozilla/5.0");
+            con.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
+
+            // Send post request
+            con.setDoOutput(true);
+            con.setDoInput(true);
+
+            DataOutputStream wr = new DataOutputStream(con.getOutputStream());
+            wr.writeBytes(postData);
+            wr.flush();
+            wr.close();
+
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            String inputLine;
+            StringBuffer response = new StringBuffer();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+
+            //print result
+            System.out.println(response.toString());
+
+            String responseString = response.toString();
+
+            if (con.getResponseCode() != 200) {
+                throw new RequestFailedException("Failed : HTTP error code : " + con.getResponseCode() + " " + responseString, objectMapper.readValue(responseString, MandrillError.class));
+            }
+            if (ServiceMethods.Users.PING.equals(serviceMethod) && responseString.indexOf("PONG!") > -1) {
+                return new BaseMandrillStringResponse(responseString);
+            }
+            if (reference == null) {
+                return convertResponseData(responseString, responseClass);
+            } else {
+                return convertAnonymousListResponseData(responseString, responseClass, reference);
+            }
+
+        } catch (MalformedURLException mURLE) {
+            throw new RequestFailedException("Malformed url", mURLE);
+        } catch (JsonGenerationException jge) {
+            throw new RequestFailedException("Json Generation Exception", jge);
+        } catch (JsonMappingException jme) {
+            throw new RequestFailedException("Json Mapping Exception", jme);
+        } catch (IOException ioe) {
+            throw new RequestFailedException("IOException", ioe);
+        }
+
     }
 
     /**
