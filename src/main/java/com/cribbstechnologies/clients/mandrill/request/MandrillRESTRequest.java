@@ -154,7 +154,7 @@ public class MandrillRESTRequest {
         } catch (JsonMappingException jme) {
             throw new RequestFailedException("Json Mapping Exception", jme);
         } catch (IOException ioe) {
-            throw new RequestFailedException("IOException", ioe);
+            throw new RequestFailedException("Failed : HTTP error code : 500 INPUT", ioe);
         }
 
     }

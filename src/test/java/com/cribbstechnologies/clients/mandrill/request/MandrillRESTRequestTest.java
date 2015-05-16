@@ -404,7 +404,7 @@ public class MandrillRESTRequestTest {
             this.request.postRequest(this.emptyBaseRequest, "test", null);
             fail("Exception not thrown");
         } catch (RequestFailedException e) {
-            assertEquals("Malformed url", e.getMessage());
+            assertEquals("Failed : HTTP error code : 500 INPUT", e.getMessage());
         }
 
         doThrow(new IOException("Mockito!")).when(this.client).execute(isA(HttpPost.class));
@@ -412,7 +412,7 @@ public class MandrillRESTRequestTest {
             this.request.postRequest(this.emptyBaseRequest, "test", null);
             fail("Exception not thrown");
         } catch (RequestFailedException e) {
-            assertEquals("IOException", e.getMessage());
+            assertEquals("Failed : HTTP error code : 500 INPUT", e.getMessage());
         }
     }
 
